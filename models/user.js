@@ -7,31 +7,31 @@ module.exports = function (sequelize, DataTypes) {
         {
             'name': {
                 'type': DataTypes.STRING(45),
-                'allowNull': false
+                'allowNull': true
             },
             'sex': {
                 'type': DataTypes.STRING(45),
-                'allowNull': false
+                'allowNull': true
             },
             'id_card': {
                 'type': DataTypes.STRING(45),
-                'allowNull': false
+                'allowNull': true
             },
             'phone': {
                 'type': DataTypes.STRING(45),
-                'allowNull': false
+                'allowNull': true
             },
             'sos_name': {
                 'type': DataTypes.STRING(45),
-                'allowNull': false
+                'allowNull': true
             },
             'sos_phone': {
                 'type': DataTypes.STRING(45),
-                'allowNull': false
+                'allowNull': true
             },
             'shit_size': {
                 'type': DataTypes.STRING(45),
-                'allowNull': false
+                'allowNull': true
             },
             'like': {
                 'type': DataTypes.STRING(45),
@@ -41,29 +41,21 @@ module.exports = function (sequelize, DataTypes) {
                 'type': DataTypes.STRING(45),
                 'allowNull': true
             },
-            'team': {
-                'type': DataTypes.STRING(45),
-                'allowNull': true
-            },
-            'share_id': {
-                'type': DataTypes.STRING(45),
-                'allowNull': true
-            },
             'teamId': {
                 'type': DataTypes.INTEGER,
-                'allowNull': false
+                'allowNull': true
             },
-            'role': {   // 0，队长 1，审核过 2，审核不过 3，未审核
+            'role': {   // 0，自由人 1，审核过 2，审核不过 3，未审核 4，队长
                 'type': DataTypes.INTEGER,
-                'allowNull': false
+                'allowNull': true
             },
             'face_url': {
-                'type': DataTypes.STRING(125),
-                'allowNull': false
+                'type': DataTypes.STRING(500),
+                'allowNull': true
             },
             'nick_name': {
-                'type': DataTypes.STRING(45),
-                'allowNull': false
+                'type': DataTypes.STRING(500),
+                'allowNull': true
             }
         },
         {

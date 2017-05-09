@@ -5,8 +5,6 @@ var Team = sequelize.import('./team');
 
 Team.hasMany(User, {foreignKey: 'teamId', targetKey: 'teamId'});
 
-User.belongsTo(Team);
-
 sequelize.sync();
 
 exports.User = User;
