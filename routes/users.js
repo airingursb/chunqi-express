@@ -9,6 +9,7 @@ var MESSAGE = {
     SUCCESS : '请求成功',
     PARAMETER_ERROR : '参数错误',
     USER_NOT_EXIST : '用户不存在',
+    TEAM_NOT_EXIST : '队伍不存在',
     PASSWORD_ERROR : '账号密码错误',
     ID_NOT_EXIST : '邀请码错误'
 }
@@ -73,7 +74,8 @@ router.get('/add_manager', function (req, res, next) {
             work: req.query.work,
             role: 4,
             nick_name: req.query.nick_name,
-            face_url: req.query.face_url
+            face_url: req.query.face_url,
+            token: sha1(timestamp)
         };
 
         UserModel.create(user).then(function (result) {
@@ -235,7 +237,8 @@ router.get('/add_user', function (req, res, next) {
             work: req.query.work,
             role: 0,
             nick_name: req.query.nick_name,
-            face_url: req.query.face_url
+            face_url: req.query.face_url,
+            token: sha1(timestamp)
         };
 
         UserModel.create(user).then(function (result) {
@@ -254,9 +257,7 @@ router.get('/remove_user', function (req, res, next) {
         return;
     }
 
-    UserModel.update({
-        team_id: -1
-    },{
+    UserModel.destroy({
         where: {
             id: req.query.user_id
         }
@@ -284,5 +285,52 @@ router.get('/delete_team', function (req, res, next) {
         res.json({status: 0, msg: MESSAGE.SUCCESS})
     }).catch(next);
 });
+
+/* users/get_user */
+router.get('/get_user', function (req, res, next) {
+
+    var timestamp = new Date().getTime();
+
+    if (req.query.token == undefined || req.query.token == '') {
+        res.json({status: 1, timestamp: timestamp, msg: MESSAGE.PARAMETER_ERROR});
+        return;
+    }
+
+    UserModel.findOne({
+        where: {
+            token: req.query.token
+        }
+    }).then(function (result) {
+        if(result) {
+            return res.json({status: 0, timestamp: timestamp, msg: MESSAGE.SUCCESS, data: result})
+        } else {
+            return res.json({status: 1001, timestamp: timestamp, msg: MESSAGE.USER_NOT_EXIST})
+        }
+    }).catch(next);
+});
+
+/* users/get_team */
+router.get('/get_team', function (req, res, next) {
+
+    var timestamp = new Date().getTime();
+
+    if (req.query.team_id == undefined || req.query.team_id == '') {
+        res.json({status: 1, timestamp: timestamp, msg: MESSAGE.PARAMETER_ERROR});
+        return;
+    }
+
+    TeamModel.findOne({
+        where: {
+            id: req.query.team_id
+        }
+    }).then(function (result) {
+        if(result) {
+            return res.json({status: 0, timestamp: timestamp, msg: MESSAGE.SUCCESS, data: result})
+        } else {
+            return res.json({status: 1002, timestamp: timestamp, msg: MESSAGE.TEAM_NOT_EXIST})
+        }
+    }).catch(next);
+});
+
 
 module.exports = router;

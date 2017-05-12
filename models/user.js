@@ -5,6 +5,10 @@ module.exports = function (sequelize, DataTypes) {
     return sequelize.define(
         'user',
         {
+            'token': {
+                'type': DataTypes.STRING(125),
+                'allowNull': true
+            },
             'name': {
                 'type': DataTypes.STRING(45),
                 'allowNull': true
