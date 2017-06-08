@@ -9,6 +9,10 @@ module.exports = function (sequelize, DataTypes) {
                 'type': DataTypes.STRING(125),
                 'allowNull': true
             },
+            'openid': {
+                'type': DataTypes.STRING(125),
+                'allowNull': true
+            },
             'name': {
                 'type': DataTypes.STRING(45),
                 'allowNull': true

@@ -4,6 +4,8 @@ var UserModel = require('../models').User;
 var TeamModel = require('../models').Team;
 var sha1 = require('sha1');
 var md5 = require('md5');
+var https = require('https');
+var querystring = require('querystring');
 
 var MESSAGE = {
     SUCCESS : '请求成功',
@@ -11,8 +13,73 @@ var MESSAGE = {
     USER_NOT_EXIST : '用户不存在',
     TEAM_NOT_EXIST : '队伍不存在',
     PASSWORD_ERROR : '账号密码错误',
-    ID_NOT_EXIST : '邀请码错误'
+    ID_NOT_EXIST : '邀请码错误',
+    KICK_ERROR : '不可踢出自己',
+    TEAM_ALREADY_EXISE: '队伍名已被使用'
 }
+
+/* users/login */
+router.get('/login', function (req, res, next) {
+
+    var timestamp = new Date().getTime();
+
+    if (req.query.code == undefined || req.query.code == '') {
+        res.json({status: 1, timestamp: timestamp, msg: MESSAGE.PARAMETER_ERROR});
+        return;
+    }
+
+    const postData = {
+        js_code: req.query.code,
+        appid: 'wxe4dff4321e59c3c7', // 填写小程序appid
+        secret: '3b6e7f724da8195c99ef74502d0c5e84',  // 填写小程序的secret
+        grant_type: 'authorization_code'
+    };
+
+    const content = querystring.stringify(postData);
+
+    const options = {
+        host: 'api.weixin.qq.com',
+        path: '/sns/jscode2session',
+        method: 'POST',
+        agent: false,
+        rejectUnauthorized: false,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Length': content.length
+        }
+    };
+
+    var req = https.request(options,function(response){
+        response.setEncoding('utf8');
+        response.on('data', function (chunk) {
+            console.log(JSON.parse(chunk));
+            UserModel.findOne({
+                where:{
+                    openid: JSON.parse(chunk).openid
+                }
+            }).then(function(user) {
+                if (!user) {
+                    UserModel.create({
+                        openid: JSON.parse(chunk).openid,
+                        role: 0
+                    }).then(function() {
+                        return res.json({status: 0, openid: JSON.parse(chunk).openid})
+                    })
+                } else {
+                    return res.json({status: 2000, openid: JSON.parse(chunk).openid})
+                }
+            })  
+        });
+        response.on('end',function(){
+            console.log('over');
+        });
+    });
+
+    req.write(content);
+    req.end();
+
+});
+
 
 /* users/create_team */
 router.get('/create_team', function (req, res, next) {
@@ -26,13 +93,24 @@ router.get('/create_team', function (req, res, next) {
 
     var team = {
         name: req.query.team_name,
-        number: 0,
+        number: 1,
         share_id: Math.floor(Math.random()*899998)+100000
     };
 
-    TeamModel.create(team).then(function (result){
-        return res.json({status: 0, timestamp: timestamp, msg: MESSAGE.SUCCESS, data: team})
+    TeamModel.findOne({
+        where: {
+            name: req.query.team_name
+        }
+    }).then((result)=>{
+        if (!result) {
+            TeamModel.create(team).then(()=>{
+                res.json({status: 0, timestamp: timestamp, msg: MESSAGE.SUCCESS, data: team})
+            })
+            return;
+        }
+        res.json({status: 1020, timestamp: timestamp, msg: MESSAGE.TEAM_ALREADY_EXISE, data: team})
     }).catch(next);
+    return;
 });
 
 /* users/add_manager */
@@ -51,7 +129,8 @@ router.get('/add_manager', function (req, res, next) {
         || req.query.like == undefined || req.query.like == ''
         || req.query.work == undefined || req.query.work == ''
         || req.query.nick_name == undefined || req.query.nick_name == ''
-        || req.query.face_url == undefined || req.query.face_url == '') {
+        || req.query.face_url == undefined || req.query.face_url == ''
+        || req.query.openid == undefined || req.query.openid == '') {
         res.json({status: 1, timestamp: timestamp, msg: MESSAGE.PARAMETER_ERROR});
         return;
     }
@@ -78,7 +157,11 @@ router.get('/add_manager', function (req, res, next) {
             token: sha1(timestamp)
         };
 
-        UserModel.create(user).then(function (result) {
+        UserModel.update(user,{
+            where: {
+                openid: req.query.openid
+            }
+        }).then(function (result) {
             return res.json({status: 0, timestamp: timestamp, msg: MESSAGE.SUCCESS, data: user});
         }).catch(next);
     }).catch(next);
@@ -102,7 +185,6 @@ router.get('/show_team', function (req, res, next) {
 
         var users = [];
         result.forEach(function (user) {
-            
             var userData = {};
             userData.user_id = user.id;
             userData.nick_name = user.nick_name;
@@ -118,12 +200,10 @@ router.get('/show_team', function (req, res, next) {
 router.get('/show_user', function (req, res, next) {
 
     var timestamp = new Date().getTime();
-
     if (req.query.user_id == undefined || req.query.user_id == '') {
         res.json({status: 1, timestamp: timestamp, msg: MESSAGE.PARAMETER_ERROR});
         return;
     }
-
     UserModel.findOne({
         where: {
             id: req.query.user_id
@@ -137,12 +217,10 @@ router.get('/show_user', function (req, res, next) {
 router.get('/pass_user', function (req, res, next) {
 
     var timestamp = new Date().getTime();
-
     if (req.query.user_id == undefined || req.query.user_id == '') {
         res.json({status: 1, timestamp: timestamp, msg: MESSAGE.PARAMETER_ERROR});
         return;
     }
-
     UserModel.update({
         role: 1
     },{
@@ -158,12 +236,10 @@ router.get('/pass_user', function (req, res, next) {
 router.get('/nopass_user', function (req, res, next) {
 
     var timestamp = new Date().getTime();
-
     if (req.query.user_id == undefined || req.query.user_id == '') {
         res.json({status: 1, timestamp: timestamp, msg: MESSAGE.PARAMETER_ERROR});
         return;
     }
-
     UserModel.update({
         role: 2
     },{
@@ -252,17 +328,29 @@ router.get('/remove_user', function (req, res, next) {
 
     var timestamp = new Date().getTime();
 
-    if (req.query.user_id == undefined || req.query.user_id == '') {
+    if (req.query.user_id == undefined || req.query.user_id == ''
+        || req.query.openid == undefined || req.query.openid == '') {
         res.json({status: 1, timestamp: timestamp, msg: MESSAGE.PARAMETER_ERROR});
         return;
     }
 
-    UserModel.destroy({
+    UserModel.findOne({
         where: {
-            id: req.query.user_id
+            id: req.query.user_id,
+            openid: req.query.openid
         }
     }).then(function (result) {
-        return res.json({status: 0, timestamp: timestamp, msg: MESSAGE.SUCCESS})
+        if(result){
+            return res.json({status: 1010, timestamp: timestamp, msg: MESSAGE.KICK_ERROR})
+        } else {
+            UserModel.destroy({
+                where: {
+                    id: req.query.user_id,
+                }
+            }).then(function(result) {
+                return res.json({status: 0, timestamp: timestamp, msg: MESSAGE.SUCCESS})       
+            })
+        }
     }).catch(next);
 
 });
@@ -277,13 +365,22 @@ router.get('/delete_team', function (req, res, next) {
         return;
     }
 
-    TeamModel.destroy({
+    UserModel.destroy({
         where: {
-            id: req.body.team_id,
+            teamId: req.query.team_id,
         }
-    }).then(function (result) {
-        res.json({status: 0, msg: MESSAGE.SUCCESS})
-    }).catch(next);
+    }).then(function () {
+        TeamModel.destroy({
+            where: {
+                id: req.query.team_id
+            }
+        }).then(function() {
+            res.json({status: 0, msg: MESSAGE.SUCCESS})
+            return;
+        })
+    });
+    res.json({status: 0, msg: MESSAGE.SUCCESS})
+
 });
 
 /* users/get_user */
@@ -291,14 +388,14 @@ router.get('/get_user', function (req, res, next) {
 
     var timestamp = new Date().getTime();
 
-    if (req.query.token == undefined || req.query.token == '') {
+    if (req.query.openid == undefined || req.query.openid == '') {
         res.json({status: 1, timestamp: timestamp, msg: MESSAGE.PARAMETER_ERROR});
         return;
     }
 
     UserModel.findOne({
         where: {
-            token: req.query.token
+            openid: req.query.openid
         }
     }).then(function (result) {
         if(result) {
@@ -329,6 +426,37 @@ router.get('/get_team', function (req, res, next) {
         } else {
             return res.json({status: 1002, timestamp: timestamp, msg: MESSAGE.TEAM_NOT_EXIST})
         }
+    }).catch(next);
+});
+
+
+/* users/feedback */
+router.get('/feedback', function (req, res, next) {
+
+    var timestamp = new Date().getTime();
+
+    if (req.query.openid == undefined || req.query.openid == ''
+        || req.query.content == undefined || req.query.content == '') {
+        res.json({status: 1000, msg: MESSAGE.PARAMETER_ERROR});
+        return;
+    }
+
+    var contact = req.query.contact || 'null'
+
+    var feedback = {
+        contact: contact,
+        content: req.query.content
+    };
+    UserModel.findOne({
+        where: {
+            openid: req.query.openid
+        }
+    }).then(function (user) {
+        if (!user) {
+            return res.json({status: 1001, msg: MESSAGE.USER_NOT_EXIST});
+        }
+        user.createFeedback(feedback);
+        res.json({status: 0, msg: MESSAGE.SUCCESS});
     }).catch(next);
 });
 
